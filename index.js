@@ -8,7 +8,7 @@ const cors = require("cors");
 
 app.use(
   cors({
-    origin: "https://turningpointbackend.onrender.com", // Replace with your frontend URL
+    origin: "https://turningpointvidisha.vercel.app/", // Replace with your frontend URL
     credentials: true,                                  // allow cookies/sessions
   })
 );
