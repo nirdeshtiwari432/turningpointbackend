@@ -1,0 +1,42 @@
+{
+  "name": "librabry",
+  "version": "1.0.0",
+  "description": "\"# Turning Point Project\"",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nirdeshtiwari432/turningPoint.git"
+  },
+  "author": "nirdesh kunal",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nirdeshtiwari432/turningPoint/issues"
+  },
+  "homepage": "https://github.com/nirdeshtiwari432/turningPoint#readme",
+  "dependencies": {
+    "cloudinary": "^1.41.3",
+    "connect-flash": "^0.1.1",
+    "connect-mongo": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "ejs-mate": "^4.0.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "mongoosh": "^0.0.7",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
+    "passport-local-mongoose": "^8.0.0",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.14"
+  }
+}
