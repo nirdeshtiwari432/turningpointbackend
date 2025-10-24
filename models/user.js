@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   number: { type: String, required: true, unique: true }, // string is better
   membershipType: { type: String, enum: ["reserved", "non_reserved"], required: true },
   plan: { type: String, enum: ["full_time", "part_time"], required: true },
-  shift: { type: String, enum: ["morning", "night", "full"], default: "full" },
+  shift: { type: String, enum: ["morning", "night", "full_time"], default: "full_time" },
   seat: { type: mongoose.Schema.Types.ObjectId, ref: "AvailableSeat", default: null },
   fees: { type: Number, default: 0 },
   startDate: { type: Date, default: null },

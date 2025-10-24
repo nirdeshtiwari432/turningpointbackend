@@ -8,10 +8,11 @@ const cors = require("cors");
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // React dev server
-    credentials: true,               // allow cookies/sessions
+    origin: "https://turningpointbackend.onrender.com", // Replace with your frontend URL
+    credentials: true,                                  // allow cookies/sessions
   })
 );
+
 
 
 // Middleware

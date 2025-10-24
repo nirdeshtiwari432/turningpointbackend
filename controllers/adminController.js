@@ -1,6 +1,7 @@
-const { User, AvailableSeat, BankDetails, Plan ,Alert} = require("../models/index");
+const { User, AvailableSeat, BankDetails, Plan, Alert } = require("../models/index");
 const passport = require("passport");
 require("dotenv").config();
+const cloudinary = require("cloudinary").v2;
 
 // Helper wrapper for async errors
 const asyncHandler = (fn) => (req, res, next) => {
@@ -69,29 +70,23 @@ exports.getUserById = asyncHandler(async (req, res) => {
 
 exports.updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { seatNo, ...updates } = req.body;
+  const { seatNo, shift, ...updates } = req.body;
 
   const user = await User.findById(id);
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  // Handle seat update if seatNo provided
-  if (seatNo) {
+  // If seatNo and shift provided
+  if (seatNo && shift) {
     const seat = await AvailableSeat.findOne({ seatNo });
     if (!seat) return res.status(404).json({ success: false, message: "Seat not found" });
 
-    if (seat.isBooked && (!seat.bookedBy || seat.bookedBy.toString() !== id)) {
-      return res.status(400).json({ success: false, message: "Seat already booked" });
+    // Free previous seat for this user (if assigned)
+    if (user.seat) {
+      await AvailableSeat.freeSeat(user.seat, user._id);
     }
 
-    // Free old seat if different
-    if (user.seat && user.seat.toString() !== seat._id.toString()) {
-      await AvailableSeat.findByIdAndUpdate(user.seat, { isBooked: false, bookedBy: null });
-    }
-
-    // Assign new seat
-    seat.isBooked = true;
-    seat.bookedBy = id;
-    await seat.save();
+    // Book the new seat
+    await AvailableSeat.bookSeat(seat._id, user._id, shift);
 
     updates.seat = seat._id;
   }
@@ -100,27 +95,23 @@ exports.updateUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "User updated successfully", user: updatedUser });
 });
 
-
 exports.deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Find user
   const user = await User.findById(id).populate("seat");
-  if (!user)
-    return res.status(404).json({ success: false, message: "User not found" });
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  // 1️⃣ Free up their seat
-  if (user.seat?._id) {
-    await AvailableSeat.findByIdAndUpdate(user.seat._id, {
-      isBooked: false,
-      bookedBy: null,
-    });
+  // Remove user from all bookedBy arrays in seats
+  const seats = await AvailableSeat.find({ "bookedBy.user": id });
+  for (const seat of seats) {
+    seat.bookedBy = seat.bookedBy.filter((b) => b.user.toString() !== id);
+    seat.isBooked = seat.bookedBy.length > 0;
+    await seat.save();
   }
 
-  // 2️⃣ Delete profile photo from Cloudinary (if exists)
+  // Delete profile photo from Cloudinary
   if (user.profilePic && !user.profilePic.includes("default-avatar.png")) {
     try {
-      // Extract public_id from Cloudinary URL
       const publicId = user.profilePic.split("/").pop().split(".")[0];
       await cloudinary.uploader.destroy(`profile/${publicId}`);
     } catch (err) {
@@ -128,18 +119,11 @@ exports.deleteUser = asyncHandler(async (req, res) => {
     }
   }
 
-  // 3️⃣ Delete related BankDetails
   await BankDetails.deleteMany({ user: user._id });
-
-  // 4️⃣ Delete the user
   await User.findByIdAndDelete(id);
 
-  res.json({
-    success: true,
-    message: "User deleted successfully (profile photo + seat freed)",
-  });
+  res.json({ success: true, message: "User deleted successfully" });
 });
-
 
 exports.unpaid = asyncHandler(async (req, res) => {
   const users = await User.find({ feeStatus: false }).sort({ startDate: -1 });
@@ -155,11 +139,10 @@ exports.getSeats = asyncHandler(async (req, res) => {
 
   if (filter === "booked") query.isBooked = true;
   else if (filter === "notBooked") query.isBooked = false;
-  else if (filter === "registered") query.bookedBy = { $ne: null };
-  else if (filter === "notRegistered") query.bookedBy = null;
+  else if (filter === "registered") query.bookedBy = { $ne: [] };
+  else if (filter === "notRegistered") query.bookedBy = { $eq: [] };
 
-  const seats = await AvailableSeat.find(query).populate("bookedBy");
-  
+  const seats = await AvailableSeat.find(query).populate("bookedBy.user");
   res.json({ seats, filter });
 });
 
@@ -167,12 +150,11 @@ exports.getSeats = asyncHandler(async (req, res) => {
 // Monthly Collection
 // =========================
 exports.getMonthlyCollection = asyncHandler(async (req, res) => {
-  console.log("month")
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const users = await User.find({
     feeStatus: true,
-    endDate: { $gte: startOfMonth},
+    endDate: { $gte: startOfMonth },
   }).select("name membershipType plan fees endDate");
 
   const totalAmount = users.reduce((sum, user) => sum + user.fees, 0);
@@ -245,37 +227,30 @@ exports.deletePlan = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Plan deleted successfully" });
 });
 
-
-
-// ✅ Get all alerts
+// =========================
+// Alerts Management
+// =========================
 exports.getAlerts = asyncHandler(async (req, res) => {
   const alerts = await Alert.find().sort({ createdAt: -1 });
   res.json({ success: true, alerts });
 });
 
-// ✅ Add a new alert
 exports.addAlert = asyncHandler(async (req, res) => {
-  const { title,description } = req.body;
-  
-  const alert = await Alert.create({ title,description });
-  
+  const { title, description } = req.body;
+  const alert = await Alert.create({ title, description });
   res.status(201).json({ success: true, alert });
 });
 
-// ✅ Update alert
 exports.updateAlert = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updatedAlert = await Alert.findByIdAndUpdate(id, req.body, { new: true });
-  if (!updatedAlert)
-    return res.status(404).json({ success: false, message: "Alert not found" });
+  if (!updatedAlert) return res.status(404).json({ success: false, message: "Alert not found" });
   res.json({ success: true, updatedAlert });
 });
 
-// ✅ Delete alert
 exports.deleteAlert = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const deleted = await Alert.findByIdAndDelete(id);
-  if (!deleted)
-    return res.status(404).json({ success: false, message: "Alert not found" });
+  if (!deleted) return res.status(404).json({ success: false, message: "Alert not found" });
   res.json({ success: true, message: "Alert deleted successfully" });
 });
