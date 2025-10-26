@@ -4,6 +4,9 @@ const MongoStore = require("connect-mongo");
 require("dotenv").config();
 
 module.exports = (app) => {
+  // Required so secure cookies work properly on Render
+  app.set("trust proxy", 1);
+
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "mysecret",
@@ -17,8 +20,8 @@ module.exports = (app) => {
       cookie: {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // only HTTPS in prod
-        sameSite: "lax",
+        secure: true,         // force HTTPS-only cookies
+        sameSite: "none",     // allow cross-site cookies (Vercel <-> Render)
       },
     })
   );
