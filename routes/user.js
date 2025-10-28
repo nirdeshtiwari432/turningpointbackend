@@ -4,7 +4,7 @@ const passport = require("passport");
 const upload = require("../middleware/uploadProfile");
 const userController = require("../controllers/userController");
 const {isUser} = require("../middleware/auth");
-
+const { generalLimiter, loginLimiter } = require("../middlewares/rateLimiter");
 
 
 // =========================
@@ -17,7 +17,7 @@ router.route("/new")
 // User Authentication
 // =========================
 router.route("/login")
-  .post(userController.login)
+  .post(loginLimiter,userController.login)
 
 router.route("/logout")
   .get(isUser,userController.userLogout);

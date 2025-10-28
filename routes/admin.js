@@ -3,6 +3,7 @@ const router = express.Router();
 const { isAdmin } = require("../middleware/auth");
 const adminController = require("../controllers/adminController");
 const updateExpiredFees = require("../middleware/updateFeeStatus")
+const { generalLimiter, loginLimiter } = require("../middlewares/rateLimiter");
 let is = (req,res,next)=>{
   console.log(req.body)
 
@@ -10,7 +11,7 @@ let is = (req,res,next)=>{
 }
 
 // Admin Login
-router.post("/login", adminController.adminLogin); // removed stray `,is`
+router.post("/login",loginLimiter, adminController.adminLogin); // removed stray `,is`
 
 // Admin Dashboard (protected)
 router.get("/dashboard", isAdmin, adminController.adminDashboard);

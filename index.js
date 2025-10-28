@@ -4,6 +4,7 @@ const ejsMate = require("ejs-mate");
 const ExpressError = require("./error");
 const cors = require("cors");
 const app = express();
+const  { generalLimiter, loginLimiter }  = require("./middleware/rateLimiter")
 
 // ===== CORS =====
 app.use(
@@ -38,6 +39,8 @@ const adminRoutes = require("./routes/admin");
 const mainRoutes = require("./routes/main");
 const userRoutes = require("./routes/user");
 
+// Rate Limiter
+app.use(generalLimiter);
 app.use("/", mainRoutes);
 app.use("/admin", adminRoutes);
 app.use("/user", userRoutes);
