@@ -4,7 +4,7 @@ const passport = require("passport");
 const upload = require("../middleware/uploadProfile");
 const userController = require("../controllers/userController");
 const {isUser} = require("../middleware/auth");
-const { generalLimiter, loginLimiter } = require("../middlewares/rateLimiter");
+const { generalLimiter, loginLimiter } = require("../middleware/rateLimiter");
 
 
 // =========================
