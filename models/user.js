@@ -13,10 +13,15 @@ const userSchema = new mongoose.Schema({
   startDate: { type: Date, default: null },
   endDate: { type: Date, default: null },
   feeStatus: { type: Boolean, default: false },
-  profilePic: { type: String, default: "/default-avatar.png" }
+  profilePic: { type: String, default: "/default-avatar.png" },
+  otp: String,
+  otpExpires: Date,
+  isVerified: { type: Boolean, default: false },
 });
 
 // IMPORTANT: set usernameField to "number"
 userSchema.plugin(passportLocalMongoose, { usernameField: "number" });
 
 module.exports = mongoose.model("User", userSchema);
+
+

@@ -5,6 +5,7 @@ const upload = require("../middleware/uploadProfile");
 const userController = require("../controllers/userController");
 const {isUser} = require("../middleware/auth");
 const { generalLimiter, loginLimiter } = require("../middleware/rateLimiter");
+const otpGlobalRateLimiter = require("../middleware/otpRateLimit")
 
 
 // =========================
@@ -12,6 +13,11 @@ const { generalLimiter, loginLimiter } = require("../middleware/rateLimiter");
 // =========================
 router.route("/new")
   .post(userController.new);
+router.route("/verify-otp",)
+   .post(otpGlobalRateLimiter,userController.verifyOtp)
+router.route("/resend-otp")
+    .post(otpGlobalRateLimiter,userController.resendOtp)
+
 
 // =========================
 // User Authentication

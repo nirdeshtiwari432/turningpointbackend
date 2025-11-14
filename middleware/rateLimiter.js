@@ -19,7 +19,7 @@ const loginLimiter = rateLimit({
   max: 5, // Limit to 5 login attempts per IP per minute
   message: {
     success: false,
-    message: "Too many login attempts. Please try again after a minute.",
+    message: "Too many login attempts. Please try again after 5 minute.",
   },
   standardHeaders: true,
   legacyHeaders: false,

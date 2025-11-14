@@ -20,8 +20,8 @@ module.exports = (app) => {
       cookie: {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         httpOnly: true,
-        secure: true,         // force HTTPS-only cookies
-        sameSite: "none",     // allow cross-site cookies (Vercel <-> Render)
+        secure: true,         // force HTTPS-only cookies/True
+        sameSite: "none",     // allow cross-site cookies (Vercel <-> Render) None
       },
     })
   );

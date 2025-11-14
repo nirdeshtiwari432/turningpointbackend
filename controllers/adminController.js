@@ -13,6 +13,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 // Admin Authentication
 // =========================
 exports.adminLogin = asyncHandler(async (req, res, next) => {
+  console.log(1)
   passport.authenticate("admin-local", { session: true }, (err, admin, info) => {
     if (err) return next(err);
 
@@ -46,16 +47,59 @@ exports.adminLogout = (req, res, next) => {
 // User Management
 // =========================
 exports.addMember = asyncHandler(async (req, res) => {
+  
   const { member, pass } = req.body;
-  const newUser = new User(member);
+  if (!member || !pass)
+    return res.status(400).json({ success: false, message: "Invalid payload" });
+
+  const {
+    name,
+    email,
+    number,
+    membershipType,
+    plan,
+    shift,
+    fees,
+    seat,
+    startDate,
+    endDate,
+  } = member;
+
+  // ✅ Validate seat
+  const seatDoc = await AvailableSeat.findById(seat);
+  if (!seatDoc) {
+    return res.status(404).json({
+      success: false,
+      message: "Seat not found",
+    });
+  }
+
+  // ✅ Register User
+  const newUser = new User({
+    name,
+    email,
+    number,
+    membershipType,
+    plan,
+    shift,
+    fees,
+    seat,
+    startDate,
+    endDate,
+  });
+
   const createdUser = await User.register(newUser, pass.password);
+
+  // ✅ Book the seat for this user
+  await AvailableSeat.bookSeat(seatDoc._id, createdUser._id, shift);
 
   res.status(201).json({
     success: true,
-    message: "User registered successfully",
+    message: "Member added & seat booked successfully",
     user: createdUser,
   });
 });
+
 
 exports.getAllMembers = asyncHandler(async (req, res) => {
   const members = await User.find({}).populate("seat");
