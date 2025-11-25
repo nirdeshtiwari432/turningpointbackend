@@ -13,12 +13,14 @@ const asyncHandler = (fn) => (req, res, next) => {
 exports.new = asyncHandler(async (req, res) => {
   const { name, email, number, membershipType, plan, shift, password } = req.body;
 
+  // Validate fields
   if (!name || !number || !membershipType || !plan || !password) {
     return res
       .status(400)
       .json({ success: false, message: "Missing required fields" });
   }
 
+  // Check existing user
   const existingUser = await User.findOne({ number });
   if (existingUser) {
     return res
@@ -26,6 +28,7 @@ exports.new = asyncHandler(async (req, res) => {
       .json({ success: false, message: "User already exists" });
   }
 
+  // Create user instance
   const newUser = new User({
     name,
     email,
@@ -33,31 +36,38 @@ exports.new = asyncHandler(async (req, res) => {
     membershipType,
     plan,
     shift,
-    isVerified: true, // OTP removed
+    isVerified: true, // NO OTP
   });
 
-  await User.register(newUser, password);
+  // Register user (hash password)
+  const registeredUser = await User.register(newUser, password);
 
-  // ⭐ AUTO LOGIN HERE ⭐
-  req.login(newUser, (err) => {
+  // ⭐ AUTO LOGIN ⭐
+  req.login(registeredUser, (err) => {
     if (err) {
-      return res.status(500).json({ success: false, message: "Auto login failed" });
+      console.error("Auto login error:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Signup successful, but auto login failed.",
+      });
     }
 
+    // Success response
     return res.status(200).json({
       success: true,
-      message: "Signup successful & logged in!",
+      message: "Signup successful — Logged in automatically!",
       user: {
-        _id: newUser._id,
-        name: newUser.name,
-        number: newUser.number,
-        membershipType: newUser.membershipType,
-        plan: newUser.plan,
-        shift: newUser.shift,
-      }
+        _id: registeredUser._id,
+        name: registeredUser.name,
+        number: registeredUser.number,
+        membershipType: registeredUser.membershipType,
+        plan: registeredUser.plan,
+        shift: registeredUser.shift,
+      },
     });
   });
 });
+
 
 
 // =========================
