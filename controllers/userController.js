@@ -33,16 +33,32 @@ exports.new = asyncHandler(async (req, res) => {
     membershipType,
     plan,
     shift,
-    isVerified: true, // no otp system
+    isVerified: true, // OTP removed
   });
 
   await User.register(newUser, password);
 
-  res.status(200).json({
-    success: true,
-    message: "Signup successful. You can now login.",
+  // ⭐ AUTO LOGIN HERE ⭐
+  req.login(newUser, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: "Auto login failed" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Signup successful & logged in!",
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        number: newUser.number,
+        membershipType: newUser.membershipType,
+        plan: newUser.plan,
+        shift: newUser.shift,
+      }
+    });
   });
 });
+
 
 // =========================
 // ✅ LOGIN (NO OTP CHECK)
