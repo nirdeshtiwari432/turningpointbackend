@@ -1,12 +1,14 @@
 const { User, BankDetails } = require("../models/index");
 const passport = require("passport");
+const cloudinary = require("cloudinary").v2;
 
-// Async wrapper to catch errors
+// Async wrapper
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
+
 // =========================
-// ✅ USER SIGNUP (OTP FIRST → CREATE USER LATER)
+// ✅ USER SIGNUP (NO OTP)
 // =========================
 exports.new = asyncHandler(async (req, res) => {
   const { name, email, number, membershipType, plan, shift, password } = req.body;
@@ -24,38 +26,6 @@ exports.new = asyncHandler(async (req, res) => {
       .json({ success: false, message: "User already exists" });
   }
 
-  // ✅ Generate OTP first (before creating user)
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: `+91${number}`,
-        type: "text",
-        text: { body: `Your OTP is ${otp}` },
-      }),
-    }
-  );
-
-  const apiRes = await response.json();
-  console.log("WhatsApp API Response:", apiRes);
-
-  // ❌ If OTP fails → DO NOT CREATE USER
-  if (apiRes.error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to send OTP. Please try again.",
-      error: apiRes.error,
-    });
-  }
-
-  // ✅ OTP delivered successfully → NOW create the user
   const newUser = new User({
     name,
     email,
@@ -63,62 +33,19 @@ exports.new = asyncHandler(async (req, res) => {
     membershipType,
     plan,
     shift,
-    otp,
-    otpExpires: Date.now() + 5 * 60 * 1000,
-    isVerified: false,
+    isVerified: true, // no otp system
   });
 
   await User.register(newUser, password);
 
   res.status(200).json({
     success: true,
-    message: "OTP sent successfully. Please verify to complete signup.",
-    userId: newUser._id,
+    message: "Signup successful. You can now login.",
   });
 });
 
 // =========================
-// ✅ VERIFY OTP + AUTO LOGIN
-// =========================
-exports.verifyOtp = asyncHandler(async (req, res) => {
-  const { number, otp } = req.body;
-
-  const user = await User.findOne({ number });
-  if (!user)
-    return res.status(400).json({ success: false, message: "User not found" });
-
-  if (user.otp !== otp)
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid OTP" });
-
-  if (user.otpExpires < Date.now())
-    return res
-      .status(400)
-      .json({ success: false, message: "OTP expired" });
-
-  // ✅ Verify user
-  user.isVerified = true;
-  user.otp = null;
-  user.otpExpires = null;
-  await user.save();
-
-  // ✅ Login session
-  req.login(user, (err) => {
-    if (err)
-      return res
-        .status(500)
-        .json({ success: false, message: "Login failed" });
-
-    res.json({
-      success: true,
-      message: "OTP verified successfully. Logged in.",
-    });
-  });
-});
-
-// =========================
-// ✅ LOGIN (BLOCK IF OTP NOT VERIFIED)
+// ✅ LOGIN (NO OTP CHECK)
 // =========================
 exports.login = asyncHandler(async (req, res, next) => {
   passport.authenticate("user-local", async (err, user, info) => {
@@ -130,17 +57,6 @@ exports.login = asyncHandler(async (req, res, next) => {
         message: info?.message || "Invalid number or password",
       });
     }
-
-    // ✅ Block login until OTP is verified
-    if (!user.isVerified) {
-          // resend OTP and block login
-          return res.status(403).json({
-              success: false,
-              message: "Account not verified. OTP resent.",
-              redirect: `/verify-otp?number=${user.number}`,
-                                      });
-                            }
-
 
     req.login(user, (err) => {
       if (err) return next(err);
@@ -161,44 +77,10 @@ exports.login = asyncHandler(async (req, res, next) => {
   })(req, res, next);
 });
 
-exports.resendOtp = asyncHandler(async (req, res) => {
-  const { number } = req.body;
-
-  const user = await User.findOne({ number });
-  if (!user)
-    return res.status(400).json({ success: false, message: "User not found" });
-
-  // ✅ Generate new OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = otp;
-  user.otpExpires = Date.now() + 5 * 60 * 1000;
-  await user.save();
-
-  // ✅ Send again to WhatsApp
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: `+91${number}`,
-        type: "text",
-        text: { body: `Your OTP is ${otp}` },
-      }),
-    }
-  );
-
-  const apiRes = await response.json();
-  if (apiRes.error)
-    return res.status(500).json({ success: false, message: "Failed to resend OTP" });
-
-  res.json({ success: true, message: "OTP resent successfully" });
-});
-
+// =========================
+// ❌ Removed verifyOtp
+// ❌ Removed resendOtp
+// =========================
 
 // =========================
 // ✅ USER PROFILE
@@ -253,12 +135,18 @@ exports.updateProfilePic = asyncHandler(async (req, res) => {
 
   const user = req.user;
 
-  // Delete old photo
+  // Delete old Cloudinary image
   if (user.profilePic && !user.profilePic.includes("default-avatar")) {
     try {
-      const publicId = user.profilePic.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`profile_photos/${publicId}`);
-    } catch {}
+      const parts = user.profilePic.split("/");
+      const fileName = parts.pop().split(".")[0];
+      const folder = parts.pop();
+
+      const publicId = `${folder}/${fileName}`;
+      await cloudinary.uploader.destroy(publicId);
+    } catch (err) {
+      console.error("Cloudinary delete error:", err.message);
+    }
   }
 
   user.profilePic = req.file.path;

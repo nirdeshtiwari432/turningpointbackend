@@ -6,7 +6,6 @@ const updateExpiredFees = require("../middleware/updateFeeStatus")
 const { generalLimiter, loginLimiter } = require("../middleware/rateLimiter");
 let is = (req,res,next)=>{
   console.log(req.body)
-
   next()
 }
 

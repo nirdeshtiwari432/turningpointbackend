@@ -14,9 +14,6 @@ const userSchema = new mongoose.Schema({
   endDate: { type: Date, default: null },
   feeStatus: { type: Boolean, default: false },
   profilePic: { type: String, default: "/default-avatar.png" },
-  otp: String,
-  otpExpires: Date,
-  isVerified: { type: Boolean, default: false },
 });
 
 // IMPORTANT: set usernameField to "number"
